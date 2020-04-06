@@ -1,0 +1,46 @@
+---
+- hosts: vagrants
+  become: true
+  user: vagrant
+  tasks:
+      - name: update yum
+        yum:
+            name: '*'
+            state: latest
+
+      - name: add EPEL repo
+        yum:
+            name: 'https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm'
+            state: present
+
+      - name: enable epel
+        command: yum-config-manager --enable epel
+
+      - name: add varnish repo
+        shell: curl -s https://packagecloud.io/install/repositories/varnishcache/varnish60lts/script.rpm.sh | sudo bash
+
+      - name: update yum
+        yum:
+            name: '*'
+            state: latest
+
+      - name: install packages
+        yum: name={{ item }}
+        with_items:
+          - varnish
+
+      - name: copy varnish settings
+        copy: src={{ item.src }} dest={{ item.dest }}
+        with_items:
+          - { src: 'varnish/default.vcl', dest: '/etc/varnish/' }
+          - { src: 'varnish/varnish.params', dest: '/etc/varnish/' }
+
+      - name: start varnish
+        systemd:
+            name: varnish
+            state: started
+
+      - name: enable varnish
+        systemd:
+            name: varnish
+            enabled: true
